@@ -10,6 +10,10 @@ import Team from './pages/Team'
 import Alumni from './pages/Alumni'
 import Contact from './pages/Contact'
 import Donate from './pages/Donate'
+// In src/App.jsx
+import Routine from './pages/Routine';
+
+
 
 function App() {
   return (
@@ -26,6 +30,7 @@ function App() {
             <Route path="/alumni" element={<Alumni />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/donate" element={<Donate />} />
+            <Route path="/routine" element={<Routine loggedInUserId={1001} />} /> 
           </Routes>
         </main>
         <Footer />

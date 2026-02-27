@@ -21,6 +21,9 @@ const Navbar = () => {
           <div className="bg-orange-500 p-2 rounded-lg"><Heart className="text-white" /></div>
           <span className="text-xl font-bold">SAMARPAN</span>
         </Link>
+      <Link to="/routine" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md font-medium">
+       Routine
+      </Link>
         <nav className="hidden md:flex gap-8">
           {navItems.map(item => (
             <Link key={item.name} to={item.href} className="hover:text-orange-500 font-medium">{item.name}</Link>

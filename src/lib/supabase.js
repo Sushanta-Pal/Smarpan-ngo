@@ -296,3 +296,85 @@ export const getImageUrl = (bucket, path) => {
   
   return data?.publicUrl || ''
 }
+
+// src/lib/supabase.js
+// (Add these to your existing file)
+
+// Fetch the routine for a specific date
+// src/lib/supabase.js
+// src/lib/supabase.js
+
+export const fetchDailyRoutine = async (date) => {
+  const { data, error } = await supabase
+    .from('routine_instances')
+    .select(`
+      id,
+      actual_date,
+      location,
+      attendance_status,
+      status,
+      assigned_volunteer_id,
+      assigned_user:volunteers_registry!assigned_volunteer_id(name, position, whatsapp_number) 
+    `)
+    .eq('actual_date', date)
+    .order('location', { ascending: true });
+
+  if (error) {
+    console.error("Error fetching routine:", error);
+    return [];
+  }
+  return data;
+};
+// Mark attendance
+export const markAttendance = async (instanceId, status, volunteerId) => {
+  // 1. Mark the daily instance as present
+  const { error: instanceError } = await supabase
+    .from('routine_instances')
+    .update({ 
+      attendance_status: status,
+      check_in_time: status === 'present' ? new Date().toISOString() : null
+    })
+    .eq('id', instanceId);
+
+  if (instanceError) throw instanceError;
+
+  // 2. If they are marked present, increment their total score in the registry
+  if (status === 'present' && volunteerId) {
+    // We use an RPC (Remote Procedure Call) to safely increment the number
+    // But a simpler way in Supabase JS without custom SQL functions is fetching then updating:
+    const { data: vol } = await supabase
+      .from('volunteers_registry')
+      .select('total_attendance')
+      .eq('id', volunteerId)
+      .single();
+
+    if (vol) {
+      await supabase
+        .from('volunteers_registry')
+        .update({ total_attendance: vol.total_attendance + 1 })
+        .eq('id', volunteerId);
+    }
+  }
+
+  return true;
+};
+
+// src/lib/supabase.js
+
+// Request a shift swap
+export const requestSwap = async (instanceId, requesterId) => {
+  // 1. Update instance status first
+  const { error: updateError } = await supabase
+    .from('routine_instances')
+    .update({ status: 'swap_requested' })
+    .eq('id', instanceId);
+  if (updateError) throw updateError; 
+
+  // 2. Create swap request record in the marketplace
+  const { data, error } = await supabase
+    .from('swap_requests')
+    .insert([{ instance_id: instanceId, requester_id: requesterId, status: 'open' }]);
+
+  if (error) throw error;
+  return data;
+};
