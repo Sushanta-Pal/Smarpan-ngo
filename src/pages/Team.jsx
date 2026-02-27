@@ -1,31 +1,18 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Linkedin, Mail, ArrowRight } from 'lucide-react'
-import { HeroSection, SectionHeading, LoadingSpinner } from '../components/animated/index.jsx'
-import { useTeamMembers } from '../lib/hooks'
+import { useQuery } from '@tanstack/react-query'
+import { fetchTeamMembers } from '../lib/supabase'
+import { SectionHeading, LoadingSpinner } from '../components/animated/index.jsx'
 
 export default function Team() {
-  const { members, loading } = useTeamMembers()
-
-  // Progressive image component with blur placeholder
-  const ProgressiveImage = ({ src, alt, className }) => {
-    const [loaded, setLoaded] = useState(false)
-
-    return (
-      <div className={`w-full h-full relative ${className || ''}`}>
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-transform duration-700 ease-out ${loaded ? 'scale-100 blur-0' : 'scale-105 blur-sm'}`}
-        />
-        {!loaded && (
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" />
-        )}
-      </div>
-    )
-  }
+  
+  // 1. THIS SINGLE LINE REPLACES YOUR ENTIRE CUSTOM HOOK!
+  // It handles fetching, caching, loading states, and background updates automatically.
+  const { data: members = [], isLoading: loading } = useQuery({
+    queryKey: ['teamMembers'], // The unique name for this cache
+    queryFn: fetchTeamMembers, // The function from your supabase.js file
+  })
 
   // 3D Modern Premium Team Card with Advanced Animations
   const StrictTeamCard = ({ member }) => {

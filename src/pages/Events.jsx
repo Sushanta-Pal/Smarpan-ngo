@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, MapPin, Users, ArrowRight, Filter, X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
 import { HeroSection, AnimatedCard, SectionHeading, StaggerContainer, StaggerItem, LoadingSpinner } from '../components/animated/index.jsx'
-import { useEvents } from '../lib/hooks'
+import { useQuery } from '@tanstack/react-query'
+import { fetchEvents } from '../lib/supabase'
 
 export default function Events() {
-  const { events, loading } = useEvents()
+  // 1. Replaced useEvents with React Query
+  const { data: events = [], isLoading: loading } = useQuery({
+    queryKey: ['events'],
+    queryFn: fetchEvents,
+  })
+  
   const [filteredEvents, setFilteredEvents] = useState([])
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [selectedEvent, setSelectedEvent] = useState(null)

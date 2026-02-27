@@ -2,27 +2,24 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
 import { HeroSection, AnimatedCard, SectionHeading, StaggerContainer, StaggerItem, LoadingSpinner } from '../components/animated/index.jsx'
-import { useGallery } from '../lib/hooks'
+import { useQuery } from '@tanstack/react-query'
+import { fetchGalleryImages } from '../lib/supabase'
 
-export default function Gallery() {
-  const { images, loading } = useGallery()
+
+  export default function Gallery() {
+  const { data: images = [], isLoading: loading } = useQuery({
+    queryKey: ['galleryImages'],
+    queryFn: fetchGalleryImages,
+  })
   const [selectedImage, setSelectedImage] = useState(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [filter, setFilter] = useState('all')
 
-  const mockImages = [
-    { id: 1, title: 'Learning Center Opening', images: [], image_url: null },
-    { id: 2, title: 'Student Activities', images: [], image_url: null },
-    { id: 3, title: 'Volunteer Dedication', images: [], image_url: null },
-    { id: 4, title: 'Community Drive', images: [], image_url: null },
-    { id: 5, title: 'Success Stories', images: [], image_url: null },
-    { id: 6, title: 'Classroom Setup', images: [], image_url: null },
-  ]
+ 
 
   const categoryFilters = ['all']
-  const displayImages = images.length > 0 ? images : mockImages
-  const filteredImages = filter === 'all' ? displayImages : displayImages.filter(img => img.category === filter)
-
+  // Just use the images array directly from React Query! No mock data needed.
+  const filteredImages = filter === 'all' ? images : images.filter(img => img.category === filter)
   const handleNextImage = () => {
     if (selectedImage?.images) {
       setCurrentImageIndex((prev) => (prev + 1) % selectedImage.images.length)
