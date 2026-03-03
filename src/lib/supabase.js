@@ -5,6 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const isProduction = import.meta.env.PROD
 const finalSupabaseUrl = isProduction ? `${window.location.origin}/supaproxy` : rawSupabaseUrl
+const supabaseUrl = "/supaproxy"
 
 // 3. Initialize Supabase with the safe routed URL
 export const supabase = createClient(finalSupabaseUrl, supabaseAnonKey)
@@ -331,3 +332,51 @@ export const submitContactForm = async (formData) => {
     return { success: false, error: error.message }
   }
 }
+
+// ==========================================
+// ADMIN PANEL GENERIC DB HELPERS
+// ==========================================
+
+export const fetchData = async (table, orderBy = null, ascending = false) => {
+  let query = supabase.from(table).select('*');
+  if (orderBy) {
+    query = query.order(orderBy, { ascending });
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return data;
+};
+
+export const upsertData = async (table, data) => {
+  try {
+    const { data: result, error } = await supabase
+      .from(table)
+      .upsert(data)
+      .select();
+
+    if (error) throw error;
+    return result;
+  } catch (err) {
+    // Postgres undefined column error fallback
+    if (err && err.code === '42703') {
+      const { error: retryError } = await supabase
+        .from(table)
+        .upsert(data);
+      if (retryError) throw retryError;
+      return null;
+    }
+    throw err;
+  }
+};
+
+export const deleteData = async (table, id) => {
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return true;
+};

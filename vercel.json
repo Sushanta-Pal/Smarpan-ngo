@@ -3,7 +3,10 @@
     {
       "source": "/supaproxy/:match*",
       "destination": "https://zbctdrpknkkrjlteitta.supabase.co/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
-  
 }
