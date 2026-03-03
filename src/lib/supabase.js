@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const isProduction = import.meta.env.PROD
 const finalSupabaseUrl = isProduction ? `${window.location.origin}/supaproxy` : rawSupabaseUrl
-const supabaseUrl = "/supaproxy"
+
 
 // 3. Initialize Supabase with the safe routed URL
 export const supabase = createClient(finalSupabaseUrl, supabaseAnonKey)
@@ -379,4 +379,44 @@ export const deleteData = async (table, id) => {
 
   if (error) throw error;
   return true;
+};
+
+// ==========================================
+// VOLUNTEER & ROUTINE MANAGEMENT (ADMIN)
+// ==========================================
+
+export const generateInstancesFromTemplates = async (dateString) => {
+  // 1. Determine the Day of the Week (e.g., 'Monday')
+  const date = new Date(dateString);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = days[date.getDay()];
+
+  // 2. Fetch all templates for this day of the week
+  const { data: templates, error: templateError } = await supabase
+    .from('routine_templates')
+    .select('*')
+    .ilike('day_of_week', dayOfWeek); // Case insensitive match
+
+  if (templateError) throw templateError;
+  if (!templates || templates.length === 0) return 0;
+
+  // 3. Create the instance objects for the specific date
+  const newInstances = templates.map(template => ({
+    template_id: template.id,
+    actual_date: dateString,
+    location: template.location,
+    assigned_volunteer_id: template.volunteer_id,
+    status: 'scheduled',
+    attendance_status: 'pending'
+  }));
+
+  // 4. Insert into routine_instances
+  // Note: We use insert. If you run it twice it might create duplicates unless you add a unique constraint in SQL on (template_id, actual_date)
+  const { data, error } = await supabase
+    .from('routine_instances')
+    .insert(newInstances)
+    .select();
+
+  if (error) throw error;
+  return newInstances.length; // Return how many shifts were created
 };

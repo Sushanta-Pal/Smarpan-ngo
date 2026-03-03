@@ -8,7 +8,9 @@ import {
   Image as ImageIcon, 
   Menu, 
   LogOut,
-  ChevronRight
+  ChevronRight,
+  ClipboardList, 
+  BookTemplate
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,6 +45,9 @@ const DashboardLayout = () => {
     { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
     { to: '/admin/events', icon: Calendar, label: 'Events' },
     { to: '/admin/team', icon: Users, label: 'Team Members' },
+    { to: '/admin/routines', icon: ClipboardList, label: 'Volunteer Routines' },
+    { to: '/admin/volunteers', icon: Users, label: 'Volunteers Registry' }, // NEW
+    { to: '/admin/templates', icon: Calendar, label: 'Master Schedule' },
     { to: '/admin/alumni', icon: GraduationCap, label: 'Alumni' },
     { to: '/admin/gallery', icon: ImageIcon, label: 'Gallery' },
     // We will add the Volunteer Routine link here in the next step!

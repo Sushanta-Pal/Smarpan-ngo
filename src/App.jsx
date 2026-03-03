@@ -26,6 +26,9 @@ const ManageEvents = React.lazy(() => import('./pages/admin/ManageEvents'));
 const ManageTeam = React.lazy(() => import('./pages/admin/ManageTeam'));
 const ManageAlumni = React.lazy(() => import('./pages/admin/ManageAlumni'));
 const ManageGallery = React.lazy(() => import('./pages/admin/ManageGallery'));
+const ManageRoutines = React.lazy(() => import('./pages/admin/ManageRoutines'));
+const ManageVolunteers = React.lazy(() => import('./pages/admin/ManageVolunteers'));
+const ManageTemplates = React.lazy(() => import('./pages/admin/ManageTemplates'));
 
 // Simple wrapper to protect admin routes
 const AdminProtectedRoute = ({ children }) => {
@@ -105,6 +108,9 @@ function App() {
                 <Route index element={<DashboardOverview />} />
                 <Route path="events" element={<ManageEvents />} />
                 <Route path="team" element={<ManageTeam />} />
+                <Route path="routines" element={<ManageRoutines />} /> {/* <-- ADD THIS LINE */}
+                <Route path="volunteers" element={<ManageVolunteers />} />
+                <Route path="templates" element={<ManageTemplates />} />
                 <Route path="alumni" element={<ManageAlumni />} />
                 <Route path="gallery" element={<ManageGallery />} />
               </Route>
