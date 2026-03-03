@@ -6,8 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 const isProduction = import.meta.env.PROD
 const finalSupabaseUrl = isProduction ? `${window.location.origin}/supaproxy` : rawSupabaseUrl
 
-
-// 3. Initialize Supabase with the safe routed URL
+// Initialize Supabase with the safe routed URL
 export const supabase = createClient(finalSupabaseUrl, supabaseAnonKey)
 
 // ==========================================
@@ -208,6 +207,7 @@ export const getImageUrl = (bucket, path) => {
 // ==========================================
 
 export const fetchDailyRoutine = async (date) => {
+  // Simplified join that avoids strict Foreign Key hints which cause cache errors
   const { data, error } = await supabase
     .from('routine_instances')
     .select(`
@@ -217,7 +217,7 @@ export const fetchDailyRoutine = async (date) => {
       attendance_status,
       status,
       assigned_volunteer_id,
-      assigned_user:volunteers_registry!assigned_volunteer_id(name, position, whatsapp_number) 
+      volunteers_registry (name, position, whatsapp_number) 
     `)
     .eq('actual_date', date)
     .order('location', { ascending: true });
@@ -226,7 +226,12 @@ export const fetchDailyRoutine = async (date) => {
     console.error("Error fetching routine:", error);
     return [];
   }
-  return data;
+  
+  // Map the generic join name back to 'assigned_user' so your table reads it correctly
+  return data.map(item => ({
+    ...item,
+    assigned_user: item.volunteers_registry
+  }));
 };
 
 export const markAttendance = async (instanceId, status, volunteerId) => {
@@ -315,6 +320,54 @@ export const acceptSwapRequest = async (swapRequestId, instanceId, newUserId) =>
   return true;
 };
 
+export const generateInstancesFromTemplates = async (dateString) => {
+  // 1. SAFE Day of Week calculation (Prevents UTC timezone shifting bugs)
+  const [year, month, day] = dateString.split('-');
+  const date = new Date(year, month - 1, day);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOfWeek = days[date.getDay()];
+
+  // 2. Fetch templates using wildcard to ignore accidental spaces in the database
+  const { data: templates, error: templateError } = await supabase
+    .from('routine_templates')
+    .select('*')
+    .ilike('day_of_week', `%${dayOfWeek}%`);
+
+  if (templateError) throw templateError;
+  if (!templates || templates.length === 0) return 0;
+
+  // 3. Prevent Duplicates! Check if shifts already exist for this date
+  const { data: existing } = await supabase
+    .from('routine_instances')
+    .select('template_id')
+    .eq('actual_date', dateString);
+  
+  const existingTemplateIds = existing ? existing.map(e => e.template_id) : [];
+
+  // Filter out templates that have already been generated today
+  const newInstances = templates
+    .filter(t => !existingTemplateIds.includes(t.id))
+    .map(template => ({
+      template_id: template.id,
+      actual_date: dateString,
+      location: template.location,
+      assigned_volunteer_id: template.volunteer_id,
+      status: 'scheduled',
+      attendance_status: 'pending'
+    }));
+
+  if (newInstances.length === 0) return -1; // Custom code to mean "Already generated"
+
+  // 4. Insert the new shifts
+  const { data, error } = await supabase
+    .from('routine_instances')
+    .insert(newInstances)
+    .select();
+
+  if (error) throw error;
+  return newInstances.length; 
+};
+
 // ==========================================
 // MISC
 // ==========================================
@@ -379,44 +432,4 @@ export const deleteData = async (table, id) => {
 
   if (error) throw error;
   return true;
-};
-
-// ==========================================
-// VOLUNTEER & ROUTINE MANAGEMENT (ADMIN)
-// ==========================================
-
-export const generateInstancesFromTemplates = async (dateString) => {
-  // 1. Determine the Day of the Week (e.g., 'Monday')
-  const date = new Date(dateString);
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dayOfWeek = days[date.getDay()];
-
-  // 2. Fetch all templates for this day of the week
-  const { data: templates, error: templateError } = await supabase
-    .from('routine_templates')
-    .select('*')
-    .ilike('day_of_week', dayOfWeek); // Case insensitive match
-
-  if (templateError) throw templateError;
-  if (!templates || templates.length === 0) return 0;
-
-  // 3. Create the instance objects for the specific date
-  const newInstances = templates.map(template => ({
-    template_id: template.id,
-    actual_date: dateString,
-    location: template.location,
-    assigned_volunteer_id: template.volunteer_id,
-    status: 'scheduled',
-    attendance_status: 'pending'
-  }));
-
-  // 4. Insert into routine_instances
-  // Note: We use insert. If you run it twice it might create duplicates unless you add a unique constraint in SQL on (template_id, actual_date)
-  const { data, error } = await supabase
-    .from('routine_instances')
-    .insert(newInstances)
-    .select();
-
-  if (error) throw error;
-  return newInstances.length; // Return how many shifts were created
 };

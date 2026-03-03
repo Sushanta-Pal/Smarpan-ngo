@@ -1,111 +1,92 @@
 import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import AdminForm from '../../components/common/AdminForm';
-import { fetchData, upsertData, deleteData } from '../../lib/supabase';
+import MediaManager from '../../components/common/MediaManager';
+import { fetchData, upsertData, deleteData, supabase } from '../../lib/supabase';
 
-const ManageEvents = () => {
+export default function ManageEvents() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
-  const columns = [
-    {
-      key: 'imageUrls',
-      label: 'Cover',
-      render: (val) => {
-        const placeholder = 'https://via.placeholder.com/50';
-        let url = placeholder;
-        try {
-          if (Array.isArray(val) && val.length) url = val[0];
-          else if (typeof val === 'string') {
-            const trimmed = val.trim();
-            if (!trimmed) url = placeholder;
-            else if (trimmed.startsWith('[')) {
-              const parsed = JSON.parse(trimmed);
-              url = Array.isArray(parsed) && parsed.length ? parsed[0] : placeholder;
-            } else if (trimmed.includes(',')) {
-              url = trimmed.split(',')[0].trim();
-            } else url = trimmed;
-          }
-        } catch (e) {
-          url = placeholder;
-        }
-        return <img src={url || placeholder} className="w-10 h-10 object-cover rounded-lg shadow-sm" alt="Event" onError={(e)=>{e.currentTarget.src=placeholder}} />;
-      }
-    },
-    { key: 'title', label: 'Title' },
-    { key: 'date', label: 'Date', render: (val) => new Date(val).toLocaleDateString() }
-  ];
-
-  const schema = [
-    { name: 'title', label: 'Event Title', type: 'text', required: true },
-    { name: 'date', label: 'Event Date', type: 'date', required: true },
-    { name: 'imageUrls', label: 'Event Image', type: 'image', bucket: 'public', folder: 'events', fullWidth: true },
-    { name: 'contents', label: 'Description', type: 'textarea', required: false, fullWidth: true },
-  ];
+  const [formData, setFormData] = useState({
+    id: null, title: '', date: '', contents: '', imageUrls: ''
+  });
 
   const loadRecords = async () => {
-    try {
-      setLoading(true);
-      const records = await fetchData('events');
-      setData(records);
-    } catch (err) {
-      alert("Error loading events: " + err.message);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const records = await fetchData('events', 'date', false); // false = descending (newest first)
+    setData(records || []);
+    setLoading(false);
   };
 
   useEffect(() => { loadRecords(); }, []);
 
-  const handleCreate = () => {
-    setSelectedRecord(null);
-    setIsFormOpen(true);
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      let finalImageUrl = formData.imageUrls;
 
-  const handleEdit = (record) => {
-    setSelectedRecord(record);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this event?")) {
-      try {
-        await deleteData('events', id);
-        loadRecords();
-      } catch (err) {
-        alert("Error deleting record");
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `covers/${Math.random()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('events').upload(filePath, selectedFile);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from('events').getPublicUrl(filePath);
+        finalImageUrl = publicUrlData.publicUrl;
       }
+
+      const dataToSave = { ...formData, imageUrls: finalImageUrl };
+      // Events schema requires manual ID if not using identity
+      if (!dataToSave.id) dataToSave.id = new Date().getTime(); 
+
+      await upsertData('events', dataToSave);
+      setIsFormOpen(false);
+      loadRecords();
+    } catch (error) {
+      alert("Error saving: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleSubmit = async (formData) => {
-    await upsertData('events', formData);
-    loadRecords();
+  const openForm = (record = null) => {
+    setSelectedFile(null);
+    if (record) setFormData(record);
+    else setFormData({ id: null, title: '', date: new Date().toISOString().split('T')[0], contents: '', imageUrls: '' });
+    setIsFormOpen(true);
   };
+
+  const columns = [
+    { key: 'imageUrls', label: 'Cover', render: (val) => <img src={val || 'https://via.placeholder.com/100x50'} className="w-16 h-10 object-cover rounded shadow-sm" alt="Event" /> },
+    { key: 'title', label: 'Event Title', render: (val) => <span className="font-bold">{val}</span> },
+    { key: 'date', label: 'Date' }
+  ];
 
   return (
     <div className="space-y-6">
-      <DataTable 
-        title="Events Management"
-        columns={columns}
-        data={data}
-        isLoading={loading}
-        onAdd={handleCreate}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
-      <AdminForm 
-        title="Event"
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        schema={schema}
-        initialData={selectedRecord}
-        onSubmit={handleSubmit}
-      />
+      <DataTable title="Events Management" columns={columns} data={data} isLoading={loading} onAdd={() => openForm()} onEdit={openForm} onDelete={(id) => deleteData('events', id).then(loadRecords)} />
+
+      <AdminForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleSubmit} title={formData.id ? "Edit Event" : "Add Event"} isLoading={isSaving}>
+        <MediaManager onUpload={setSelectedFile} isUploading={isSaving && selectedFile} currentImage={selectedFile ? URL.createObjectURL(selectedFile) : formData.imageUrls} />
+        <div className="space-y-4 mt-4">
+          <div>
+            <label className="block text-sm font-semibold mb-1">Event Title</label>
+            <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1">Event Date</label>
+            <input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1">Description / Contents</label>
+            <textarea rows="4" value={formData.contents} onChange={e => setFormData({...formData, contents: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+          </div>
+        </div>
+      </AdminForm>
     </div>
   );
-};
-
-export default ManageEvents;
+}
