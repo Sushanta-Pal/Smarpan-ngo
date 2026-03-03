@@ -15,6 +15,16 @@ export default function ManageGallery() {
     id: null, title: '', imageUrls: ''
   });
 
+  // Helper for relative path preview
+  const getPreviewUrl = (path) => {
+    if (!path) return 'https://via.placeholder.com/100x60';
+    if (path.startsWith('http')) return path; 
+    
+    const cleanPath = path.replace(/^gallery\//, '');
+    const { data } = supabase.storage.from('gallery').getPublicUrl(cleanPath);
+    return data.publicUrl;
+  };
+
   const loadRecords = async () => {
     setLoading(true);
     const records = await fetchData('gallery', 'id', false); // newest first
@@ -28,16 +38,18 @@ export default function ManageGallery() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let finalImageUrl = formData.imageUrls;
+      let finalImagePath = formData.imageUrls;
+
+      // Upload & Save Relative Path
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `images/${Math.random()}.${fileExt}`;
+        
         await supabase.storage.from('gallery').upload(filePath, selectedFile);
-        const { data: publicUrlData } = supabase.storage.from('gallery').getPublicUrl(filePath);
-        finalImageUrl = publicUrlData.publicUrl;
+        finalImagePath = `gallery/${filePath}`;
       }
 
-      const dataToSave = { ...formData, imageUrls: finalImageUrl };
+      const dataToSave = { ...formData, imageUrls: finalImagePath };
       if (!dataToSave.id) delete dataToSave.id;
 
       await upsertData('gallery', dataToSave);
@@ -58,7 +70,7 @@ export default function ManageGallery() {
   };
 
   const columns = [
-    { key: 'imageUrls', label: 'Image', render: (val) => <img src={val} className="w-24 h-16 object-cover rounded shadow-sm" alt="Gallery" /> },
+    { key: 'imageUrls', label: 'Image', render: (val) => <img src={getPreviewUrl(val)} className="w-24 h-16 object-cover rounded shadow-sm" alt="Gallery" /> },
     { key: 'title', label: 'Image Title', render: (val) => <span className="font-bold">{val}</span> }
   ];
 
@@ -67,7 +79,7 @@ export default function ManageGallery() {
       <DataTable title="Gallery Management" columns={columns} data={data} isLoading={loading} onAdd={() => openForm()} onEdit={openForm} onDelete={(id) => deleteData('gallery', id).then(loadRecords)} />
 
       <AdminForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleSubmit} title={formData.id ? "Edit Gallery Item" : "Upload New Image"} isLoading={isSaving}>
-        <MediaManager onUpload={setSelectedFile} isUploading={isSaving && selectedFile} currentImage={selectedFile ? URL.createObjectURL(selectedFile) : formData.imageUrls} />
+        <MediaManager onUpload={setSelectedFile} isUploading={isSaving && selectedFile} currentImage={selectedFile ? URL.createObjectURL(selectedFile) : getPreviewUrl(formData.imageUrls)} />
         <div className="space-y-4 mt-4">
           <div>
             <label className="block text-sm font-semibold mb-1">Image Title / Caption</label>

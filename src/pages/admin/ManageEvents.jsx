@@ -15,9 +15,19 @@ export default function ManageEvents() {
     id: null, title: '', date: '', contents: '', imageUrls: ''
   });
 
+  // Helper for relative path preview
+  const getPreviewUrl = (path) => {
+    if (!path) return 'https://via.placeholder.com/100x50';
+    if (path.startsWith('http')) return path; 
+    
+    const cleanPath = path.replace(/^events\//, '');
+    const { data } = supabase.storage.from('events').getPublicUrl(cleanPath);
+    return data.publicUrl;
+  };
+
   const loadRecords = async () => {
     setLoading(true);
-    const records = await fetchData('events', 'date', false); // false = descending (newest first)
+    const records = await fetchData('events', 'date', false); // newest first
     setData(records || []);
     setLoading(false);
   };
@@ -28,19 +38,21 @@ export default function ManageEvents() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let finalImageUrl = formData.imageUrls;
+      let finalImagePath = formData.imageUrls;
 
+      // 1. Upload Image & Save Relative Path
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `covers/${Math.random()}.${fileExt}`;
+        
         const { error: uploadError } = await supabase.storage.from('events').upload(filePath, selectedFile);
         if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from('events').getPublicUrl(filePath);
-        finalImageUrl = publicUrlData.publicUrl;
+        
+        finalImagePath = `events/${filePath}`;
       }
 
-      const dataToSave = { ...formData, imageUrls: finalImageUrl };
-      // Events schema requires manual ID if not using identity
+      // 2. Save Data
+      const dataToSave = { ...formData, imageUrls: finalImagePath };
       if (!dataToSave.id) dataToSave.id = new Date().getTime(); 
 
       await upsertData('events', dataToSave);
@@ -61,7 +73,7 @@ export default function ManageEvents() {
   };
 
   const columns = [
-    { key: 'imageUrls', label: 'Cover', render: (val) => <img src={val || 'https://via.placeholder.com/100x50'} className="w-16 h-10 object-cover rounded shadow-sm" alt="Event" /> },
+    { key: 'imageUrls', label: 'Cover', render: (val) => <img src={getPreviewUrl(val)} className="w-16 h-10 object-cover rounded shadow-sm" alt="Event" /> },
     { key: 'title', label: 'Event Title', render: (val) => <span className="font-bold">{val}</span> },
     { key: 'date', label: 'Date' }
   ];
@@ -71,7 +83,7 @@ export default function ManageEvents() {
       <DataTable title="Events Management" columns={columns} data={data} isLoading={loading} onAdd={() => openForm()} onEdit={openForm} onDelete={(id) => deleteData('events', id).then(loadRecords)} />
 
       <AdminForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleSubmit} title={formData.id ? "Edit Event" : "Add Event"} isLoading={isSaving}>
-        <MediaManager onUpload={setSelectedFile} isUploading={isSaving && selectedFile} currentImage={selectedFile ? URL.createObjectURL(selectedFile) : formData.imageUrls} />
+        <MediaManager onUpload={setSelectedFile} isUploading={isSaving && selectedFile} currentImage={selectedFile ? URL.createObjectURL(selectedFile) : getPreviewUrl(formData.imageUrls)} />
         <div className="space-y-4 mt-4">
           <div>
             <label className="block text-sm font-semibold mb-1">Event Title</label>

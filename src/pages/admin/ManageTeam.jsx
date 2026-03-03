@@ -15,6 +15,17 @@ export default function ManageTeam() {
     id: null, name: '', position: '', linkedin_url: '', image_path: '', is_active: true, order_position: 100
   });
 
+  // Helper to generate a viewable URL just for the Admin Panel preview
+  const getPreviewUrl = (path) => {
+    if (!path) return 'https://via.placeholder.com/50';
+    if (path.startsWith('http')) return path; // Fallback in case old data has full URLs
+    
+    // Strip "team-members/" from the start to get the pure file path
+    const cleanPath = path.replace(/^team-members\//, '');
+    const { data } = supabase.storage.from('team-members').getPublicUrl(cleanPath);
+    return data.publicUrl;
+  };
+
   const loadRecords = async () => {
     setLoading(true);
     try {
@@ -33,9 +44,9 @@ export default function ManageTeam() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let finalImageUrl = formData.image_path;
+      let finalImagePath = formData.image_path;
 
-      // 1. Upload Image if a new one is selected
+      // 1. Upload Image
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
@@ -47,13 +58,13 @@ export default function ManageTeam() {
 
         if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage.from('team-members').getPublicUrl(filePath);
-        finalImageUrl = publicUrlData.publicUrl;
+        // ONLY SAVE THE PATH, not the full URL!
+        finalImagePath = `team-members/${filePath}`;
       }
 
       // 2. Save to Database
-      const dataToSave = { ...formData, image_path: finalImageUrl };
-      if (!dataToSave.id) delete dataToSave.id; // Let Postgres auto-generate ID
+      const dataToSave = { ...formData, image_path: finalImagePath };
+      if (!dataToSave.id) delete dataToSave.id;
 
       await upsertData('team_members', dataToSave);
       setIsFormOpen(false);
@@ -80,7 +91,12 @@ export default function ManageTeam() {
   };
 
   const columns = [
-    { key: 'image_path', label: 'Photo', render: (val) => <img src={val || 'https://via.placeholder.com/50'} className="w-10 h-10 object-cover rounded-full" alt="Team" /> },
+    { 
+      key: 'image_path', 
+      label: 'Photo', 
+      // Use the preview helper so the image doesn't break in the table
+      render: (val) => <img src={getPreviewUrl(val)} className="w-10 h-10 object-cover rounded-full" alt="Team" /> 
+    },
     { key: 'name', label: 'Name', render: (val) => <span className="font-bold">{val}</span> },
     { key: 'position', label: 'Position' },
     { key: 'is_active', label: 'Status', render: (val) => <span className={`px-2 py-1 rounded text-xs font-bold ${val ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{val ? 'Active' : 'Inactive'}</span> }
@@ -94,7 +110,8 @@ export default function ManageTeam() {
         <MediaManager 
           onUpload={setSelectedFile} 
           isUploading={isSaving && selectedFile} 
-          currentImage={selectedFile ? URL.createObjectURL(selectedFile) : formData.image_path} 
+          // Use the preview helper here too!
+          currentImage={selectedFile ? URL.createObjectURL(selectedFile) : getPreviewUrl(formData.image_path)} 
         />
         <div className="grid grid-cols-2 gap-4 mt-4">
           <div className="col-span-2">
