@@ -1,18 +1,53 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Award, Briefcase, GraduationCap, Linkedin, X, Trophy, Target, BookOpen } from 'lucide-react'
+import { Star, Award, Briefcase, GraduationCap, Linkedin, X, Trophy, Target, BookOpen, Search } from 'lucide-react'
 import { HeroSection, SectionHeading, StaggerContainer, StaggerItem, LoadingSpinner, AnimatedCard } from '../components/animated/index.jsx'
 import { useQuery } from '@tanstack/react-query'
-import { fetchAlumni } from '../lib/supabase'
+import { fetchAlumni, supabase } from '../lib/supabase'
 
 export default function Alumni() {
-  // 1. Replaced custom hook with React Query
   const { data: alumni = [], isLoading: loading } = useQuery({
     queryKey: ['alumni'],
     queryFn: fetchAlumni,
   })
   
   const [selectedAlumnus, setSelectedAlumnus] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // Helper to convert relative DB paths to public Supabase URLs
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path; // Handle old or external URLs
+    
+    // Strip "alumni/" if it exists to get the pure file path inside the bucket
+    const cleanPath = path.replace(/^alumni\//, '');
+    const { data } = supabase.storage.from('alumni').getPublicUrl(cleanPath);
+    return data.publicUrl;
+  };
+
+  // Filter and Sort Logic
+  const filteredAndSortedAlumni = useMemo(() => {
+    let result = [...alumni];
+
+    // 1. Search Logic
+    if (searchTerm) {
+      const lowerQuery = searchTerm.toLowerCase();
+      result = result.filter(person => 
+        (person.name && person.name.toLowerCase().includes(lowerQuery)) ||
+        (person.company_name && person.company_name.toLowerCase().includes(lowerQuery)) ||
+        (person.graduation_year && person.graduation_year.toString().includes(lowerQuery))
+      );
+    }
+
+    // 2. Sort Logic (Descending: Newest batches first. e.g., 2026 -> 2025 -> 2024)
+    result.sort((a, b) => {
+      const yearA = a.graduation_year || 0;
+      const yearB = b.graduation_year || 0;
+      return yearB - yearA;
+    });
+
+    return result;
+  }, [alumni, searchTerm]);
 
   return (
     <div>
@@ -47,16 +82,30 @@ export default function Alumni() {
         </div>
       </section>
 
-      {/* Alumni Stories */}
+      {/* Alumni Stories & Search */}
       <section className="py-20 container mx-auto px-4">
         <SectionHeading title="Alumni Success Stories" subtitle="Transforming lives, transforming society" />
 
+        {/* Search Bar */}
+        <div className="max-w-2xl mx-auto mb-12 relative z-10">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-green-600 w-5 h-5 transition-transform group-focus-within:scale-110" />
+            <input
+              type="text"
+              placeholder="Search by name, company, or batch year (e.g. 2026)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-green-100 focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all outline-none text-gray-700 shadow-sm text-lg"
+            />
+          </div>
+        </div>
+
         {loading ? (
           <LoadingSpinner />
-        ) : alumni.length > 0 ? (
+        ) : filteredAndSortedAlumni.length > 0 ? (
           <StaggerContainer>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {alumni.map((person, i) => (
+              {filteredAndSortedAlumni.map((person, i) => (
                 <StaggerItem key={person.id || i}>
                   <motion.div
                     initial={{ opacity: 0, rotateY: -20 }}
@@ -77,7 +126,7 @@ export default function Alumni() {
                       <div className="relative h-80 overflow-hidden bg-gradient-to-br from-green-400 via-green-500 to-orange-500">
                         {person.image_url ? (
                           <img 
-                            src={person.image_url} 
+                            src={getImageUrl(person.image_url)} 
                             alt={person.name}
                             loading="lazy"
                             crossOrigin="anonymous"
@@ -97,20 +146,22 @@ export default function Alumni() {
                         {/* Floating Badge - Graduation Year */}
                         <motion.div 
                           whileHover={{ scale: 1.1, rotate: 5 }}
-                          className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-full px-4 py-2 text-xs font-bold text-green-700 shadow-lg"
+                          className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-full px-4 py-2 text-xs font-bold text-green-700 shadow-lg border border-green-100"
                         >
                           Batch {person.graduation_year}
                         </motion.div>
 
                         {/* Featured Star Badge */}
-                        <motion.div 
-                          whileHover={{ scale: 1.2, rotate: 12 }}
-                          animate={{ rotate: [0, 5, 0], scale: [1, 1.05, 1] }}
-                          transition={{ duration: 3, repeat: Infinity }}
-                          className="absolute top-4 left-4 bg-yellow-400 rounded-full p-3 shadow-lg"
-                        >
-                          <Trophy size={18} className="text-white" fill="white" />
-                        </motion.div>
+                        {person.is_featured && (
+                          <motion.div 
+                            whileHover={{ scale: 1.2, rotate: 12 }}
+                            animate={{ rotate: [0, 5, 0], scale: [1, 1.05, 1] }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                            className="absolute top-4 left-4 bg-yellow-400 rounded-full p-3 shadow-lg"
+                          >
+                            <Trophy size={18} className="text-white" fill="white" />
+                          </motion.div>
+                        )}
                       </div>
 
                       {/* Content Section - Enhanced Design */}
@@ -132,7 +183,7 @@ export default function Alumni() {
                         </div>
 
                         {/* Company Badge */}
-                        {person.company_name && (
+                        {person.company_name && person.company_name !== 'Not specified' && (
                           <motion.div
                             whileHover={{ scale: 1.02 }}
                             className="mb-4 inline-block bg-gradient-to-r from-green-100 to-orange-100 text-green-800 px-4 py-2 rounded-full text-xs font-bold"
@@ -141,28 +192,10 @@ export default function Alumni() {
                           </motion.div>
                         )}
 
-                        {/* Achievement Highlight */}
-                        {person.achievement && (
-                          <div className="mb-5 p-4 bg-gradient-to-br from-green-50 to-orange-50 rounded-xl border-l-4 border-green-600">
-                            <div className="flex items-start gap-3">
-                              <Award size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-sm font-semibold text-gray-800">{person.achievement}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Story Preview */}
-                        <p className="text-gray-700 text-sm leading-relaxed mb-6 flex-grow italic border-l-2 border-green-300 pl-4">
-                          "{person.success_story}"
-                        </p>
-
                         {/* CTA Buttons */}
-                        <div className="flex gap-3 mt-auto">
+                        <div className="flex gap-3 mt-auto pt-6 border-t border-gray-100">
                           <motion.button
-                            whileHover={{ 
-                              scale: 1.05,
-                              boxShadow: "0 10px 25px rgba(34, 197, 94, 0.3)"
-                            }}
+                            whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(34, 197, 94, 0.3)" }}
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -178,10 +211,7 @@ export default function Alumni() {
                               href={person.linkedin_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              whileHover={{ 
-                                scale: 1.1,
-                                boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)"
-                              }}
+                              whileHover={{ scale: 1.1, boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)" }}
                               whileTap={{ scale: 0.9 }}
                               onClick={(e) => e.stopPropagation()}
                               className="p-3 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 transition-all shadow-md hover:shadow-lg"
@@ -192,8 +222,6 @@ export default function Alumni() {
                           )}
                         </div>
                       </div>
-
-                      {/* Card Footer Accent */}
                       <div className="h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent" />
                     </div>
                   </motion.div>
@@ -209,14 +237,20 @@ export default function Alumni() {
               viewport={{ once: true }}
             >
               <GraduationCap size={64} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-2xl text-gray-600">No alumni data available</p>
-              <p className="text-gray-500 mt-2">Alumni stories coming soon!</p>
+              <p className="text-2xl text-gray-600">
+                {searchTerm ? "No alumni match your search." : "No alumni data available"}
+              </p>
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="mt-4 text-green-600 font-bold hover:underline">
+                  Clear Search
+                </button>
+              )}
             </motion.div>
           </div>
         )}
       </section>
 
-      {/* Alumni Detail Modal - Enhanced with 3D Effects */}
+      {/* Alumni Detail Modal */}
       <AnimatePresence>
         {selectedAlumnus && (
           <motion.div
@@ -231,13 +265,13 @@ export default function Alumni() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+              className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl custom-scrollbar"
             >
               {/* Premium Modal Header with Image */}
               <div className="relative h-96 bg-gradient-to-br from-green-400 via-green-500 to-orange-500 overflow-hidden">
                 {selectedAlumnus.image_url ? (
                   <img 
-                    src={selectedAlumnus.image_url} 
+                    src={getImageUrl(selectedAlumnus.image_url)} 
                     alt={selectedAlumnus.name}
                     loading="lazy"
                     crossOrigin="anonymous"
@@ -263,20 +297,10 @@ export default function Alumni() {
                 >
                   <X size={24} className="text-gray-900" />
                 </motion.button>
-
-                {/* Floating Badge */}
-                <motion.div 
-                  animate={{ rotate: [0, 5, 0], scale: [1, 1.05, 1] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                  className="absolute bottom-6 left-6 bg-yellow-400 rounded-full p-4 shadow-lg"
-                >
-                  <Trophy size={24} className="text-white" fill="white" />
-                </motion.div>
               </div>
 
               {/* Enhanced Modal Content */}
               <div className="p-10">
-                {/* Top Section - Name and Title */}
                 <div className="mb-8">
                   <motion.h2 
                     initial={{ opacity: 0, y: -10 }}
@@ -287,27 +311,19 @@ export default function Alumni() {
                   </motion.h2>
                   
                   <div className="flex flex-wrap gap-4 mb-4">
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="flex items-center gap-2 bg-gradient-to-r from-green-100 to-green-50 px-5 py-3 rounded-full"
-                    >
+                    <motion.div className="flex items-center gap-2 bg-gradient-to-r from-green-100 to-green-50 px-5 py-3 rounded-full">
                       <Briefcase size={20} className="text-green-600" />
                       <p className="font-bold text-green-700">{selectedAlumnus.current_role}</p>
                     </motion.div>
 
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-orange-50 px-5 py-3 rounded-full"
-                    >
+                    <motion.div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-orange-50 px-5 py-3 rounded-full">
                       <GraduationCap size={20} className="text-orange-600" />
                       <p className="font-bold text-orange-700">Batch {selectedAlumnus.graduation_year}</p>
                     </motion.div>
                   </div>
                 </div>
 
-                {/* Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                  {/* Main Story - Takes 2 columns */}
                   <div className="lg:col-span-2">
                     <div className="mb-8">
                       <h3 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2">
@@ -320,49 +336,22 @@ export default function Alumni() {
                         </p>
                       </div>
                     </div>
-
-                    {/* Achievement Highlight */}
-                    {selectedAlumnus.achievement && (
-                      <motion.div
-                        whileHover={{ scale: 1.02 }}
-                        className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-l-4 border-blue-600"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 bg-blue-600 rounded-lg">
-                            <Award size={24} className="text-white" fill="white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-blue-700 mb-1">ACHIEVEMENT</p>
-                            <p className="text-xl font-bold text-gray-900">{selectedAlumnus.achievement}</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
                   </div>
 
                   {/* Right Column - Details */}
                   <div className="space-y-4">
-                    {/* Company Card */}
-                    {selectedAlumnus.company_name && (
-                      <motion.div
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        className="p-5 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl border-2 border-orange-200 shadow-md"
-                      >
+                    {selectedAlumnus.company_name && selectedAlumnus.company_name !== 'Not specified' && (
+                      <motion.div className="p-5 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl border-2 border-orange-200 shadow-md">
                         <p className="text-xs font-bold text-orange-700 mb-2 uppercase tracking-wide">🏢 Organization</p>
                         <p className="text-lg font-black text-gray-900">{selectedAlumnus.company_name}</p>
                       </motion.div>
                     )}
 
-                    {/* Year Badge */}
-                    <motion.div
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-md text-center"
-                    >
+                    <motion.div className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-md text-center">
                       <p className="text-xs font-bold text-purple-700 mb-2 uppercase tracking-wide">🎓 Batch Year</p>
                       <p className="text-4xl font-black text-purple-600">{selectedAlumnus.graduation_year}</p>
                     </motion.div>
 
-                    {/* LinkedIn Button */}
                     {selectedAlumnus.linkedin_url && (
                       <motion.a
                         href={selectedAlumnus.linkedin_url}
@@ -379,7 +368,6 @@ export default function Alumni() {
                   </div>
                 </div>
 
-                {/* Action Footer */}
                 <div className="pt-6 border-t-2 border-gray-100">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -428,36 +416,6 @@ export default function Alumni() {
             </div>
           </StaggerContainer>
         </div>
-      </section>
-
-      {/* Join Alumni Network */}
-      <section className="py-20 container mx-auto px-4 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-5xl font-black mb-4 text-slate-900">Join the Alumni Network</h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Connect with fellow alumni, share your success story, and help us transform more lives.
-          </p>
-          <div className="flex flex-col md:flex-row gap-4 justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-green-600 text-white px-8 py-4 rounded-full font-bold hover:bg-green-700 transition-all inline-block"
-            >
-              Register as Alumni
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white border-2 border-green-600 text-green-600 px-8 py-4 rounded-full font-bold hover:bg-green-50 transition-all inline-block"
-            >
-              Share Your Story
-            </motion.button>
-          </div>
-        </motion.div>
       </section>
     </div>
   )
