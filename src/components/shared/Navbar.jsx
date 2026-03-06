@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Heart } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
+import logo from './logo.png'
 
 const Navbar = ({ user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false)
   
+  // Removed "Home" from the navigation items
   const navItems = [
-    { name: 'Home', href: '/' },
     { name: 'About', href: '/about' },
     { name: 'Events', href: '/events' },
     { name: 'Gallery', href: '/gallery' },
@@ -18,18 +19,19 @@ const Navbar = ({ user, onLogout }) => {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-md">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         
-        {/* Logo */}
+        {/* Logo Section - Increased size and added mix-blend-multiply for a seamless look */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="bg-orange-500 p-2 rounded-lg">
-            <Heart size={20} className="text-white fill-current" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">SAMARPAN</span>
+          <img 
+            src={logo} 
+            alt="Samarpan Logo" 
+            className="h-14 sm:h-16 w-auto object-contain mix-blend-multiply scale-110 origin-left" 
+          />
         </Link>
 
         {/* Desktop Main Navigation */}
-        <nav className="hidden md:flex gap-6 lg:gap-8 items-center">
+        <nav className="hidden md:flex gap-5 lg:gap-8 items-center">
           {navItems.map(item => (
             <Link 
               key={item.name} 
@@ -45,7 +47,7 @@ const Navbar = ({ user, onLogout }) => {
         <div className="hidden md:flex items-center gap-4">
           {!user ? (
             <Link to="/login" className="text-indigo-600 font-bold hover:text-indigo-800 text-sm lg:text-base px-2">
-              Volunteer Login
+              Member Login
             </Link>
           ) : (
             <div className="flex items-center gap-4">
@@ -57,7 +59,7 @@ const Navbar = ({ user, onLogout }) => {
               </Link>
               <div className="flex items-center gap-3 border-l-2 pl-4 border-gray-200">
                 <span className="text-sm font-medium text-gray-500">
-                  Hi, {user.name.split(' ')[0]} {/* Shows just their first name */}
+                  Hi, {user.name.split(' ')[0]}
                 </span>
                 <button 
                   onClick={onLogout} 
@@ -82,7 +84,7 @@ const Navbar = ({ user, onLogout }) => {
           className="md:hidden text-gray-600 p-2" 
           onClick={() => setIsOpen(!isOpen)}
         >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
+          {isOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
 
@@ -115,7 +117,7 @@ const Navbar = ({ user, onLogout }) => {
                     onClick={() => setIsOpen(false)} 
                     className="font-bold text-indigo-600"
                   >
-                    Volunteer Login
+                    Member Login
                   </Link>
                 ) : (
                   <>

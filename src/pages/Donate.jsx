@@ -1,11 +1,25 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, Book, Users, Smile, ArrowRight } from 'lucide-react'
-import { HeroSection, SectionHeading, StaggerContainer, StaggerItem, AnimatedCard } from '../components/animated/index.jsx'
+import { HeroSection, SectionHeading, StaggerContainer, StaggerItem } from '../components/animated/index.jsx'
 
 export default function Donate() {
   const [selectedAmount, setSelectedAmount] = useState(null)
   const [selectedType, setSelectedType] = useState('one-time')
+
+  // Fetch the Google Form link from the .env file
+  const donationLink = import.meta.env.VITE_DONATION_FORM_LINK
+
+  // Handler to open the Google Form in a new tab
+  const handleDonateClick = (e) => {
+    if (e) e.stopPropagation() // Prevents clicking the card background when clicking the button
+    
+    if (donationLink) {
+      window.open(donationLink, '_blank', 'noopener,noreferrer')
+    } else {
+      alert("Donation link is not configured. Please add VITE_DONATION_FORM_LINK to your .env file.")
+    }
+  }
 
   const donationPlans = [
     { amount: 500, title: 'Basic', desc: 'Support 1 student\'s monthly learning', icon: Book },
@@ -80,6 +94,7 @@ export default function Donate() {
                     <p className="text-lg font-bold text-slate-900 mb-2">{plan.title}</p>
                     <p className="text-gray-700 text-sm mb-4">{plan.desc}</p>
                     <motion.button
+                      onClick={handleDonateClick}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="w-full bg-pink-600 text-white py-2 rounded-lg font-semibold hover:bg-pink-700 transition-all flex items-center justify-center gap-2"
@@ -109,6 +124,7 @@ export default function Donate() {
               className="flex-1 px-4 py-3 border-2 border-pink-300 rounded-lg focus:outline-none focus:border-pink-600"
             />
             <motion.button
+              onClick={handleDonateClick}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="bg-pink-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-pink-700 transition-all"
@@ -218,6 +234,7 @@ export default function Donate() {
             Your contribution, no matter the size, helps us provide quality education to underprivileged children.
           </p>
           <motion.button
+            onClick={handleDonateClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="bg-pink-600 text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-pink-700 transition-all inline-block"

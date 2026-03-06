@@ -12,12 +12,11 @@ export default function About() {
   ]
 
   const milestones = [
-    { year: '2014', title: 'Started with 50 students', desc: 'Began our journey with a small group of dedicated volunteers.' },
-    { year: '2016', title: 'Expanded to 5 centers', desc: 'Successfully established learning centers in underserved communities.' },
-    { year: '2018', title: 'Reached 1000+ students', desc: 'Impacted over a thousand students through various programs.' },
-    { year: '2020', title: 'Digital Initiative', desc: 'Launched online learning during the pandemic.' },
-    { year: '2022', title: '5000+ students', desc: 'Expanded reach to 15 learning centers across the region.' },
-    { year: '2024', title: 'Community Leaders', desc: 'Many alumni now volunteer and lead community initiatives.' },
+    { year: '2015', title: 'The Beginning', desc: 'Started our journey on Sunday, April 5, 2015, teaching 10 students at the Haldia Institute of Technology campus.' },
+    { year: '2020', title: 'Digital Adaptation', desc: 'During the COVID-19 pandemic, we successfully shifted all our classes online to ensure uninterrupted learning.' },
+    { year: '2021', title: 'First Community Centers', desc: 'Transitioned from online classes back to physical learning by opening centers in children\'s places in Gandhinagar.' },
+    { year: '2023', title: 'Expanding Our Reach', desc: 'Added new dedicated learning places in communities like Khudiram and Avinandan.' },
+    { year: 'Present', title: 'Growing Impact', desc: 'Currently operating 15+ active centers supported by a strong family of 100+ active members.' },
   ]
 
   return (
@@ -40,10 +39,10 @@ export default function About() {
           >
             <h2 className="text-5xl font-black mb-6 text-slate-900">Our Story</h2>
             <p className="text-lg text-gray-600 mb-4 leading-relaxed">
-              SAMARPAN began with a simple belief: every child deserves quality education, regardless of their economic background. Founded in 2014, we started with just 50 students and a handful of passionate volunteers.
+              SAMARPAN began with a simple belief: every child deserves quality education, regardless of their economic background. Our journey officially started on <strong>Sunday, April 5, 2015</strong>, with just 10 students whom we taught right inside the college campus at Haldia Institute of Technology.
             </p>
             <p className="text-lg text-gray-600 leading-relaxed">
-              Today, we've grown into a vibrant community of educators, volunteers, and donors committed to breaking the cycle of poverty through education. Our work spans across 15 learning centers, touching the lives of over 5000 students annually.
+              When the COVID-19 pandemic hit, we adapted by taking our classes online. Post-pandemic, we shifted into physical centers situated in children's places in Gandhinagar. Today, we've expanded to places like Khudiram, Avinandan, and more, growing into a vibrant community of 100+ active members managing 15+ learning centers.
             </p>
           </motion.div>
           <motion.div
@@ -53,9 +52,9 @@ export default function About() {
             transition={{ duration: 0.6 }}
             className="bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl p-12"
           >
-            <div className="text-6xl font-black text-orange-600 mb-4">5K+</div>
+            <div className="text-6xl font-black text-orange-600 mb-4">150+</div>
             <p className="text-2xl font-bold text-slate-900 mb-4">Students Impacted</p>
-            <p className="text-gray-700">Since our inception, we've provided free quality education to thousands of underprivileged children across multiple communities.</p>
+            <p className="text-gray-700">Since our inception at the HIT campus, we've provided free quality education and guidance to over 150 underprivileged children across our centers.</p>
           </motion.div>
         </div>
       </section>
@@ -120,9 +119,9 @@ export default function About() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
               { value: '10+', label: 'Years Active' },
-              { value: '5000+', label: 'Students Educated' },
-              { value: '500+', label: 'Active Volunteers' },
-              { value: '15+', label: 'Learning Centers' },
+              { value: '150+', label: 'Students Impacted' },
+              { value: '100+', label: 'Active Members' },
+              { value: '15+', label: 'Active Centers' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -132,7 +131,7 @@ export default function About() {
                 transition={{ delay: i * 0.1 }}
               >
                 <div className="text-5xl font-black mb-2">{stat.value}</div>
-                <p className="text-white/80">{stat.label}</p>
+                <p className="text-white/80 font-semibold">{stat.label}</p>
               </motion.div>
             ))}
           </div>

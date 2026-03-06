@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Phone, Mail, Facebook, Instagram, Linkedin, Heart, ArrowUp } from 'lucide-react'
+import { Phone, Mail, Facebook, Instagram, Linkedin, ArrowUp } from 'lucide-react'
+import logo from './logo.png'
 
 const Footer = () => {
   const scrollToTop = () => {
@@ -19,7 +20,7 @@ const Footer = () => {
   ]
 
   const stats = [
-    { label: 'Students Impacted', number: '5000+' },
+    { label: 'Students Impacted', number: '150+' },
     { label: 'Team Members', number: '50+' },
     { label: 'Programs', number: '15+' }
   ]
@@ -58,9 +59,13 @@ const Footer = () => {
             whileInView={{ opacity: 1, y: 0 }}
             className="lg:col-span-1"
           >
-            <div className="flex items-center gap-2 mb-4">
-              <Heart className="text-orange-500 fill-orange-500" size={28} />
-              <h3 className="text-2xl font-black text-white">SAMARPAN</h3>
+            <div className="flex items-center gap-3 mb-6">
+              {/* Logo scaled up drastically and layers removed */}
+              <img 
+                src={logo} 
+                alt="Samarpan Logo" 
+                className="h-16 md:h-20 w-auto object-contain scale-110 origin-left" 
+              />
             </div>
             <p className="text-gray-400 leading-relaxed text-sm">
               Providing free education to underprivileged children. Every child deserves a chance to shine and reach their dreams.
