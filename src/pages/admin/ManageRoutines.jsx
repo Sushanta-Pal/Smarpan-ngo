@@ -5,7 +5,10 @@ import AdminForm from '../../components/common/AdminForm';
 import { fetchDailyRoutine, fetchData, upsertData, deleteData, generateInstancesFromTemplates } from '../../lib/supabase';
 
 const ManageRoutines = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Get today's date string in YYYY-MM-DD format
+  const todayString = new Date().toISOString().split('T')[0];
+  
+  const [selectedDate, setSelectedDate] = useState(todayString);
   const [routines, setRoutines] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,18 @@ const ManageRoutines = () => {
   const loadRoutines = async () => {
     setLoading(true);
     try {
+      // 🚀 AUTOMATIC GENERATION LOGIC:
+      // If the selected date is today, automatically attempt to generate shifts from the master template.
+      // The backend logic already prevents duplicates, so this is safe to run on every load.
+      if (selectedDate === todayString) {
+        try {
+          await generateInstancesFromTemplates(selectedDate);
+        } catch (genError) {
+          console.error("Silent auto-generation failed:", genError);
+        }
+      }
+
+      // Fetch the routines (which will now include any freshly auto-generated ones)
       const data = await fetchDailyRoutine(selectedDate);
       setRoutines(data || []);
     } catch (error) {
@@ -40,13 +55,14 @@ const ManageRoutines = () => {
     }
   };
 
+  // Keep the manual button for future/past dates
   const handleGenerate = async () => {
     if(window.confirm(`Generate standard shifts for ${selectedDate} based on the Master Schedule?`)) {
       setIsGenerating(true);
       try {
         const count = await generateInstancesFromTemplates(selectedDate);
         if (count === -1) {
-          alert("Shifts for this day have already been generated!");
+          alert("Shifts for this day have already been fully generated!");
         } else if (count === 0) {
           alert("No Master Templates found for this day of the week.");
         } else {
@@ -70,11 +86,13 @@ const ManageRoutines = () => {
         delete dataToSave.id;
         dataToSave.actual_date = selectedDate; // Ensure new shifts apply to the selected date
       }
+      
       // If "Unassigned" is selected, set to null
       if (dataToSave.assigned_volunteer_id === '') {
         dataToSave.assigned_volunteer_id = null;
       }
       
+      // This saves the admin's manual changes for this specific day
       await upsertData('routine_instances', dataToSave);
       setIsFormOpen(false);
       loadRoutines();
@@ -86,7 +104,7 @@ const ManageRoutines = () => {
   };
 
   const handleDelete = async (id) => {
-    if(window.confirm('Delete this specific shift for the day? (This does not affect the Master Schedule)')) {
+    if(window.confirm('Delete this specific shift for the day? \n\nNote: If this is a Master Template shift for today, deleting it will cause it to auto-generate again on refresh. To cancel a shift, EDIT it and change status to "Cancelled".')) {
       try {
         await deleteData('routine_instances', id);
         loadRoutines();
@@ -132,7 +150,8 @@ const ManageRoutines = () => {
       render: (status) => (
         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
           status === 'swap_requested' ? 'bg-orange-100 text-orange-700' :
-          status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+          status === 'completed' ? 'bg-green-100 text-green-700' : 
+          status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
         }`}>
           {status ? status.replace('_', ' ').toUpperCase() : 'SCHEDULED'}
         </span>
@@ -175,6 +194,7 @@ const ManageRoutines = () => {
             onClick={handleGenerate}
             disabled={isGenerating}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold transition-colors disabled:opacity-70"
+            title="Use this to manually generate future dates"
           >
             <Wand2 className="w-4 h-4" />
             {isGenerating ? 'Generating...' : 'Auto-Generate Shifts'}
