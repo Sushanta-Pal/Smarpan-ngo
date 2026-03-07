@@ -5,6 +5,14 @@
       "destination": "https://zbctdrpknkkrjlteitta.supabase.co/:match*"
     },
     {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
